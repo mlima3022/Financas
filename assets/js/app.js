@@ -90,6 +90,16 @@ function bindTopbar() {
   if (toggle) {
     toggle.addEventListener("click", () => {
       sidebar.classList.toggle("open");
+      const backdrop = qs("#sidebarBackdrop");
+      if (backdrop) backdrop.classList.toggle("open", sidebar.classList.contains("open"));
+    });
+  }
+
+  const backdrop = qs("#sidebarBackdrop");
+  if (backdrop) {
+    backdrop.addEventListener("click", () => {
+      sidebar.classList.remove("open");
+      backdrop.classList.remove("open");
     });
   }
 }

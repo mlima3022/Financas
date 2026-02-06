@@ -368,7 +368,7 @@ a { color: inherit; text-decoration: none; }
   .sidebar {
     position: fixed;
     inset: 0 auto 0 0;
-    width: 240px;
+    width: min(78vw, 280px);
     transform: translateX(-100%);
     transition: 0.2s ease;
     z-index: 20;
@@ -376,6 +376,19 @@ a { color: inherit; text-decoration: none; }
     backdrop-filter: blur(12px);
   }
   .sidebar.open { transform: translateX(0); }
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 15;
+  }
+  .sidebar-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
   .topbar { padding-left: 16px; padding-right: 16px; }
   #sidebarToggle { display: inline-flex; min-width: 56px; justify-content: center; }
   .view { padding: 16px; }
@@ -388,6 +401,8 @@ a { color: inherit; text-decoration: none; }
 
 @media (max-width: 600px) {
   .topbar-right { flex-direction: column; align-items: flex-end; }
+  .topbar-right .input { width: 100%; }
+  .topbar { gap: 8px; }
   .grid-4 { grid-template-columns: 1fr; }
 }
 
