@@ -255,10 +255,18 @@ async function renderAccounts() {
 
   qs("#accountForm").addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (!state.activeWorkspaceId) {
+      toast("Selecione um workspace antes", "error");
+      return;
+    }
     const fd = new FormData(e.target);
-    await createAccount(Object.fromEntries(fd));
-    toast("Conta criada");
-    renderAccounts();
+    try {
+      await createAccount(Object.fromEntries(fd));
+      toast("Conta criada");
+      renderAccounts();
+    } catch (err) {
+      toast(err.message || "Erro ao criar conta", "error");
+    }
   });
 
   const accounts = await listAccounts();
