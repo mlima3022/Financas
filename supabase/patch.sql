@@ -220,6 +220,7 @@ returns trigger as $$
 declare
   ws_id uuid;
 begin
+  perform set_config('row_security', 'off', true);
   insert into profiles (id, full_name) values (new.id, new.email);
   insert into workspaces (name, created_by) values ('Meu workspace', new.id) returning id into ws_id;
   insert into workspace_members (workspace_id, user_id, role) values (ws_id, new.id, 'owner');

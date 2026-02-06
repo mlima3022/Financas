@@ -8,12 +8,18 @@ export async function signup(email, password) {
   return supabase.auth.signUp({ email, password });
 }
 
+function getRedirectUrl() {
+  const { origin, pathname } = window.location;
+  const basePath = pathname.endsWith("/") ? pathname : pathname.replace(/\/[^/]*$/, "/");
+  return `${origin}${basePath}`;
+}
+
 export async function resetPassword(email) {
-  return supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+  return supabase.auth.resetPasswordForEmail(email, { redirectTo: getRedirectUrl() });
 }
 
 export async function signInWithGoogle() {
-  return supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } });
+  return supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: getRedirectUrl() } });
 }
 
 export async function logout() {
