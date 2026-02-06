@@ -84,9 +84,12 @@ function bindTopbar() {
     navigate("#/login");
   });
 
-  qs("#sidebarToggle").addEventListener("click", () => {
-    sidebar.classList.toggle("open");
-  });
+  const toggle = qs("#sidebarToggle");
+  if (toggle) {
+    toggle.addEventListener("click", () => {
+      sidebar.classList.toggle("open");
+    });
+  }
 }
 
 registerRoute("#/login", renderLogin, "Acesso");
