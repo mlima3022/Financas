@@ -223,6 +223,7 @@ a { color: inherit; text-decoration: none; }
 .btn.ghost { background: transparent; color: inherit; border: 1px solid var(--border); }
 .btn.danger { background: var(--danger); }
 .btn.icon { width: 40px; height: 40px; padding: 0; }
+#sidebarToggle { display: none; }
 
 .input {
   width: 100%;
@@ -250,7 +251,7 @@ a { color: inherit; text-decoration: none; }
   padding: 4px 8px;
   border-radius: 999px;
   font-size: 11px;
-  background: #ffffff1c;
+  background: #ffffff1f;
 }
 .badge.success { background: #d9f2e6; color: #1f6f54; }
 .badge.warning { background: #fff1ce; color: #8a6500; }
@@ -364,9 +365,19 @@ a { color: inherit; text-decoration: none; }
 
 @media (max-width: 980px) {
   .app-shell { grid-template-columns: 1fr; }
-  .sidebar { position: fixed; inset: 0 auto 0 0; width: 240px; transform: translateX(-100%); transition: 0.2s ease; z-index: 20; }
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 240px;
+    transform: translateX(-100%);
+    transition: 0.2s ease;
+    z-index: 20;
+    background: #ffffff1c;
+    backdrop-filter: blur(12px);
+  }
   .sidebar.open { transform: translateX(0); }
   .topbar { padding-left: 16px; padding-right: 16px; }
+  #sidebarToggle { display: inline-flex; min-width: 56px; justify-content: center; }
   .view { padding: 16px; }
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid-3 { grid-template-columns: 1fr; }
@@ -379,7 +390,6 @@ a { color: inherit; text-decoration: none; }
   .topbar-right { flex-direction: column; align-items: flex-end; }
   .grid-4 { grid-template-columns: 1fr; }
 }
-
 
 
 [data-theme="dark"] .sidebar {
