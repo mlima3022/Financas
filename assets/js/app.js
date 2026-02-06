@@ -284,8 +284,12 @@ async function renderTransactions() {
         <input class="input" name="currency" value="BRL" />
         <input class="input" name="date" type="date" required />
         <input class="input" name="description" placeholder="Descrição" />
-        <input class="input" name="account_id" placeholder="ID da conta" />
-        <input class="input" name="category_id" placeholder="ID da categoria" />
+        <select class="input" name="account_id" id="accountSelect">
+          <option value="">Conta</option>
+        </select>
+        <select class="input" name="category_id" id="categorySelect">
+          <option value="">Categoria</option>
+        </select>
         <input class="input" name="attachment" type="file" />
         <button class="btn" type="submit">Salvar</button>
       </form>
@@ -315,6 +319,10 @@ async function renderTransactions() {
   });
 
   let offset = 0;
+
+  const [accounts, categories] = await Promise.all([listAccounts(), listCategories()]);
+  qs("#accountSelect").innerHTML = `<option value="">Conta</option>${accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join("")}`;
+  qs("#categorySelect").innerHTML = `<option value="">Categoria</option>${categories.map(c => `<option value="${c.id}">${c.name}</option>`).join("")}`;
   async function loadTx(append = false) {
     const from = qs("#filterFrom").value || undefined;
     const to = qs("#filterTo").value || undefined;
