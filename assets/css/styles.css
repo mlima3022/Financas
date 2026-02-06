@@ -250,7 +250,7 @@ a { color: inherit; text-decoration: none; }
   padding: 4px 8px;
   border-radius: 999px;
   font-size: 11px;
-  background: #efeae1;
+  background: #ffffff1c;
 }
 .badge.success { background: #d9f2e6; color: #1f6f54; }
 .badge.warning { background: #fff1ce; color: #8a6500; }
@@ -379,6 +379,7 @@ a { color: inherit; text-decoration: none; }
   .topbar-right { flex-direction: column; align-items: flex-end; }
   .grid-4 { grid-template-columns: 1fr; }
 }
+
 
 
 [data-theme="dark"] .sidebar {
