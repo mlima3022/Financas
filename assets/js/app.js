@@ -6,7 +6,7 @@ import { fetchWorkspaces, createWorkspace, setActiveWorkspace } from "./services
 import { listAccounts, createAccount, deleteAccount } from "./services/accounts.js";
 import { listTransactions, createTransaction, uploadAttachment } from "./services/transactions.js";
 import { listBudgets, upsertBudget, listCategories, createCategory } from "./services/budgets.js";
-import { listCards, createCard, generateInvoice } from "./services/cards.js";
+import { listCards, createCard, generateInvoice, createCardPurchase, listCardPurchases, payCardInvoice } from "./services/cards.js";
 import { listGoals, createGoal, addContribution } from "./services/goals.js";
 import { listDebts, createDebt, payDebt } from "./services/debts.js";
 import { getDashboardSummary, getCategorySpend, getMonthlyTrend, exportReport } from "./services/reports.js";
@@ -16,6 +16,7 @@ import { previewCSV, mapColumns, transformRows } from "./import/csvImport.js";
 
 const view = qs("#view");
 const sidebar = qs("#sidebar");
+const appShell = qs("#app");
 const THEME_KEY = "financas_theme";
 
 function applyTheme(theme) {
@@ -42,6 +43,7 @@ function setAuthUI(isAuthed) {
   sidebar.style.display = isAuthed ? "flex" : "none";
   qs("#workspaceSelect").style.display = isAuthed ? "block" : "none";
   qs("#userBadge").style.display = isAuthed ? "block" : "none";
+  if (appShell) appShell.classList.toggle("auth-mode", !isAuthed);
 }
 
 async function initSession() {
@@ -250,7 +252,9 @@ async function renderAccounts() {
   });
 
   const accounts = await listAccounts();
-  qs("#accountsTable").innerHTML = `
+  const accountsTable = view.querySelector("#accountsTable");
+  if (!accountsTable) return;
+  accountsTable.innerHTML = `
     <tr><th>Nome</th><th>Tipo</th><th>Moeda</th><th>Saldo inicial</th><th></th></tr>
     ${accounts.map(a => `
       <tr>
@@ -367,7 +371,9 @@ async function renderBudgets() {
     <div class="card">
       <div class="card-title">Orçamento mensal</div>
       <form id="budgetForm" class="grid-2">
-        <input class="input" name="category_id" placeholder="ID categoria" required />
+        <select class="input" name="category_id" id="budgetCategory" required>
+          <option value="">Categoria</option>
+        </select>
         <input class="input" name="amount" type="number" step="0.01" placeholder="Valor" required />
         <input class="input" name="month" type="month" required />
         <button class="btn" type="submit">Salvar</button>
@@ -393,15 +399,25 @@ async function renderBudgets() {
   });
 
   const categories = await listCategories();
-  qs("#catList").innerHTML = categories.length
+  const budgetCategory = view.querySelector("#budgetCategory");
+  if (budgetCategory) {
+    budgetCategory.innerHTML = `<option value="">Categoria</option>${categories.map(c => `<option value="${c.id}">${c.name}</option>`).join("")}`;
+  }
+  const catList = view.querySelector("#catList");
+  if (catList) {
+    catList.innerHTML = categories.length
     ? categories.map(c => `<div class="badge">${c.name}</div>`).join(" ")
     : `<div class="state">Sem categorias</div>`;
+  }
 
   const month = new Date().toISOString().slice(0, 7);
   const budgets = await listBudgets(month);
-  qs("#budgetList").innerHTML = budgets.length
+  const budgetList = view.querySelector("#budgetList");
+  if (budgetList) {
+    budgetList.innerHTML = budgets.length
     ? budgets.map(b => `<div>${b.categories?.name}: ${formatCurrency(b.amount)}</div>`).join("")
     : `<div class="state">Sem orçamentos para este mês</div>`;
+  }
 }
 
 async function renderCards() {
@@ -418,6 +434,25 @@ async function renderCards() {
       </form>
     </div>
     <div class="card">
+      <div class="card-title">Compra no cartão</div>
+      <form id="cardPurchaseForm" class="grid-3">
+        <select class="input" name="card_id" id="purchaseCard">
+          <option value="">Cartão</option>
+        </select>
+        <input class="input" name="amount" type="number" step="0.01" placeholder="Valor" required />
+        <input class="input" name="date" type="date" required />
+        <input class="input" name="description" placeholder="Descrição" />
+        <select class="input" name="category_id" id="purchaseCategory">
+          <option value="">Categoria</option>
+        </select>
+        <input class="input" name="currency" value="BRL" />
+        <button class="btn" type="submit">Registrar compra</button>
+      </form>
+      <div class="form-actions">
+        <button class="btn secondary" id="payInvoiceBtn" type="button">Pagar fatura do mês</button>
+      </div>
+    </div>
+    <div class="card">
       <div class="card-title">Cartões</div>
       <div id="cardList"></div>
     </div>
@@ -431,7 +466,31 @@ async function renderCards() {
     renderCards();
   });
 
-  const cards = await listCards();
+  const [cards, categories] = await Promise.all([listCards(), listCategories()]);
+  qs("#purchaseCard").innerHTML = `<option value="">Cartão</option>${cards.map(c => `<option value="${c.id}">${c.name}</option>`).join("")}`;
+  qs("#purchaseCategory").innerHTML = `<option value="">Categoria</option>${categories.map(c => `<option value="${c.id}">${c.name}</option>`).join("")}`;
+
+  qs("#cardPurchaseForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const payload = Object.fromEntries(fd);
+    if (!payload.card_id) return toast("Selecione um cartão");
+    const date = payload.date;
+    payload.card_cycle = date ? date.slice(0, 7) : new Date().toISOString().slice(0, 7);
+    await createCardPurchase(payload);
+    toast("Compra registrada");
+    renderCards();
+  });
+
+  qs("#payInvoiceBtn").addEventListener("click", async () => {
+    const cardId = qs("#purchaseCard").value;
+    const cycle = prompt("Mês da fatura (YYYY-MM)");
+    if (!cardId || !cycle) return;
+    await payCardInvoice(cardId, cycle);
+    toast("Fatura paga");
+    renderCards();
+  });
+
   qs("#cardList").innerHTML = cards.length ? cards.map(c => `
     <div class="card" style="margin-bottom:10px;">
       <div>${c.name} - Limite ${formatCurrency(c.limit_amount || 0)}</div>
@@ -505,40 +564,166 @@ async function renderGoals() {
 async function renderDebts() {
   guardAuth();
   view.innerHTML = `
-    <div class="card">
-      <div class="card-title">Nova dívida</div>
-      <form id="debtForm" class="grid-3">
-        <input class="input" name="name" placeholder="Nome" required />
-        <input class="input" name="principal_amount" type="number" step="0.01" placeholder="Valor" />
-        <input class="input" name="creditor" placeholder="Credor" />
-        <button class="btn" type="submit">Salvar</button>
-      </form>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Nova dívida</div>
+        <form id="debtForm" class="grid-3">
+          <input class="input" name="name" placeholder="Nome" required />
+          <input class="input" name="principal_amount" type="number" step="0.01" placeholder="Valor total" required />
+          <input class="input" name="creditor" placeholder="Credor" />
+          <select class="input" name="debt_type" id="debtType">
+            <option value="single">Única</option>
+            <option value="installment">Parcelada</option>
+          </select>
+          <input class="input" name="installments_total" id="installmentsTotal" type="number" min="2" placeholder="Qtd parcelas" />
+          <input class="input" name="start_date" id="debtStartDate" type="date" />
+          <input class="input" name="monthly_amount" id="monthlyAmount" type="number" step="0.01" placeholder="Valor parcela" />
+          <input class="input" name="interest_rate" type="number" step="0.01" placeholder="Juros % a.m. (opcional)" />
+          <button class="btn" type="submit">Salvar</button>
+        </form>
+        <div class="form-help" id="debtPreview">Preencha os campos para ver a simulação.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Resumo</div>
+        <div id="debtSummary" class="stat-grid"></div>
+      </div>
     </div>
     <div class="card">
       <div class="card-title">Dívidas</div>
-      <div id="debtList"></div>
+      <div id="debtList" class="debt-list"></div>
     </div>
   `;
+
+  const debtType = qs("#debtType");
+  const installmentsTotal = qs("#installmentsTotal");
+  const monthlyAmount = qs("#monthlyAmount");
+  const debtStartDate = qs("#debtStartDate");
+  const debtPreview = qs("#debtPreview");
+
+  function toggleInstallments() {
+    const isInstallment = debtType.value === "installment";
+    installmentsTotal.disabled = !isInstallment;
+    monthlyAmount.disabled = !isInstallment;
+    debtStartDate.disabled = !isInstallment;
+    if (!isInstallment) {
+      installmentsTotal.value = "";
+      monthlyAmount.value = "";
+      debtStartDate.value = "";
+    }
+    updatePreview();
+  }
+
+  function updatePreview() {
+    const total = Number(qs("input[name='principal_amount']").value || 0);
+    const inst = Number(installmentsTotal.value || 0);
+    const isInstallment = debtType.value === "installment";
+    let perMonth = Number(monthlyAmount.value || 0);
+    if (isInstallment && total > 0 && inst > 0) {
+      perMonth = perMonth || Number((total / inst).toFixed(2));
+      monthlyAmount.value = perMonth;
+      debtPreview.textContent = `Parcelamento: ${inst}x de ${formatCurrency(perMonth)} (total ${formatCurrency(total)})`;
+      return;
+    }
+    if (total > 0) {
+      debtPreview.textContent = `Dívida única no valor de ${formatCurrency(total)}.`;
+      return;
+    }
+    debtPreview.textContent = "Preencha os campos para ver a simulação.";
+  }
+
+  debtType.addEventListener("change", toggleInstallments);
+  installmentsTotal.addEventListener("input", updatePreview);
+  monthlyAmount.addEventListener("input", updatePreview);
+  qs("input[name='principal_amount']").addEventListener("input", updatePreview);
+  toggleInstallments();
 
   qs("#debtForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    await createDebt(Object.fromEntries(fd));
+    const payload = Object.fromEntries(fd);
+    const total = Number(payload.principal_amount || 0);
+    const isInstallment = payload.debt_type === "installment";
+    if (!total) return toast("Informe o valor total da dívida", "error");
+    if (isInstallment) {
+      const inst = Number(payload.installments_total || 0);
+      if (inst < 2) return toast("Informe a quantidade de parcelas", "error");
+      if (!payload.start_date) return toast("Informe a data da primeira parcela", "error");
+      if (!payload.monthly_amount) {
+        payload.monthly_amount = Number((total / inst).toFixed(2));
+      }
+      payload.installments_paid = 0;
+    } else {
+      payload.installments_total = null;
+      payload.installments_paid = null;
+      payload.start_date = null;
+      payload.monthly_amount = null;
+    }
+    delete payload.debt_type;
+    payload.current_amount = payload.current_amount || total;
+    await createDebt(payload);
     toast("Dívida criada");
     renderDebts();
   });
 
   const debts = await listDebts();
-  qs("#debtList").innerHTML = debts.length ? debts.map(d => `
-    <div class="card" style="margin-bottom:10px;">
-      <div>${d.name} - Saldo ${formatCurrency(d.current_amount || d.principal_amount || 0)}</div>
-      <button class="btn secondary" data-debt="${d.id}">Registrar pagamento</button>
+  const totalRemaining = debts.reduce((sum, d) => sum + Number(d.current_amount ?? d.principal_amount ?? 0), 0);
+  const totalMonthly = debts.reduce((sum, d) => sum + Number(d.monthly_amount || 0), 0);
+  const activeInstallments = debts.filter(d => d.installments_total).length;
+  qs("#debtSummary").innerHTML = `
+    <div class="stat">
+      <div class="label">Total em aberto</div>
+      <div class="value">${formatCurrency(totalRemaining)}</div>
     </div>
-  `).join("") : `<div class="state">Sem dívidas</div>`;
+    <div class="stat">
+      <div class="label">Parceladas ativas</div>
+      <div class="value">${activeInstallments}</div>
+    </div>
+    <div class="stat">
+      <div class="label">Parcelas/mês</div>
+      <div class="value">${formatCurrency(totalMonthly)}</div>
+    </div>
+  `;
+
+  qs("#debtList").innerHTML = debts.length ? debts.map(d => {
+    const total = Number(d.principal_amount || 0);
+    const remaining = Number(d.current_amount ?? total);
+    const instTotal = d.installments_total;
+    const instPaid = d.installments_paid || 0;
+    const pct = instTotal ? Math.min(100, (instPaid / instTotal) * 100) : (total ? Math.min(100, (1 - remaining / total) * 100) : 0);
+    let nextDue = "";
+    if (instTotal && d.start_date) {
+      const start = new Date(d.start_date);
+      const next = new Date(start.getFullYear(), start.getMonth() + instPaid, start.getDate());
+      nextDue = `Próxima: ${formatDate(next.toISOString().slice(0,10))}`;
+    }
+    return `
+      <div class="debt-item">
+        <div class="debt-header">
+          <div>
+            <div class="debt-title">${d.name}</div>
+            <div class="debt-meta">${d.creditor || "Sem credor"} · ${instTotal ? `${instPaid}/${instTotal} parcelas` : "Única"}</div>
+          </div>
+          <div class="debt-amount">${formatCurrency(remaining)}</div>
+        </div>
+        <div class="debt-progress">
+          <div class="progress">
+            <div class="progress-fill" style="width:${pct}%;"></div>
+          </div>
+          <div class="debt-meta">${nextDue || `Restante: ${formatCurrency(remaining)}`}</div>
+        </div>
+        <div class="debt-actions">
+          <button class="btn secondary" data-debt="${d.id}" data-amount="${d.monthly_amount || ""}">
+            ${instTotal ? "Pagar parcela" : "Registrar pagamento"}
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("") : `<div class="state">Sem dívidas</div>`;
 
   qsa("[data-debt]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const amount = Number(prompt("Valor do pagamento"));
+      const suggested = btn.dataset.amount;
+      const amount = Number(prompt("Valor do pagamento", suggested || ""));
       if (!amount) return;
       await payDebt(btn.dataset.debt, amount);
       toast("Pagamento registrado");
