@@ -16,6 +16,27 @@ import { previewCSV, mapColumns, transformRows } from "./import/csvImport.js";
 
 const view = qs("#view");
 const sidebar = qs("#sidebar");
+const THEME_KEY = "financas_theme";
+
+function applyTheme(theme) {
+  document.body.dataset.theme = theme;
+  const btn = qs("#themeToggle");
+  if (btn) btn.textContent = theme === "dark" ? "Modo claro" : "Modo escuro";
+}
+
+function initTheme() {
+  const stored = localStorage.getItem(THEME_KEY);
+  const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  applyTheme(stored || (prefersDark ? "dark" : "light"));
+  const btn = qs("#themeToggle");
+  if (btn) {
+    btn.addEventListener("click", () => {
+      const next = document.body.dataset.theme === "dark" ? "light" : "dark";
+      localStorage.setItem(THEME_KEY, next);
+      applyTheme(next);
+    });
+  }
+}
 
 function setAuthUI(isAuthed) {
   sidebar.style.display = isAuthed ? "flex" : "none";
@@ -85,22 +106,45 @@ registerRoute("#/404", () => view.innerHTML = "<div class='state'>Página não e
 function renderLogin() {
   setAuthUI(false);
   view.innerHTML = `
-    <div class="card" style="max-width:520px;margin:0 auto;">
-      <div class="card-title">Entrar</div>
-      <form id="loginForm" class="grid-2">
-        <input class="input" name="email" type="email" placeholder="Email" required />
-        <input class="input" name="password" type="password" placeholder="Senha" required />
-        <button class="btn" type="submit">Login</button>
-        <button class="btn secondary" id="googleBtn" type="button">Google</button>
-      </form>
-      <hr />
-      <form id="signupForm" class="grid-2">
-        <input class="input" name="email" type="email" placeholder="Novo email" required />
-        <input class="input" name="password" type="password" placeholder="Nova senha" required />
-        <button class="btn" type="submit">Criar conta</button>
-        <button class="btn ghost" id="resetBtn" type="button">Reset senha</button>
-      </form>
-    </div>
+    <section class="auth">
+      <div class="auth-hero">
+        <div class="auth-brand">
+          <span class="brand-mark">$</span>
+          <div>
+            <div class="brand-title">Finanças</div>
+            <div class="brand-sub">Controle total do seu dinheiro</div>
+          </div>
+        </div>
+        <div class="auth-copy">
+          <h2>Organize, planeje e visualize</h2>
+          <p>Centralize contas, cartões e metas em um só lugar. Relatórios claros e alertas automáticos.</p>
+          <div class="auth-badges">
+            <span class="badge">Rápido</span>
+            <span class="badge">Seguro</span>
+            <span class="badge">Cloud</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="auth-panel card">
+        <div class="card-title">Entrar</div>
+        <form id="loginForm" class="auth-form">
+          <input class="input" name="email" type="email" placeholder="Email" required />
+          <input class="input" name="password" type="password" placeholder="Senha" required />
+          <button class="btn" type="submit">Login</button>
+          <button class="btn secondary" id="googleBtn" type="button">Continuar com Google</button>
+        </form>
+
+        <div class="divider"><span>ou</span></div>
+
+        <form id="signupForm" class="auth-form">
+          <input class="input" name="email" type="email" placeholder="Novo email" required />
+          <input class="input" name="password" type="password" placeholder="Nova senha" required />
+          <button class="btn" type="submit">Criar conta</button>
+          <button class="btn ghost" id="resetBtn" type="button">Reset de senha</button>
+        </form>
+      </div>
+    </section>
   `;
 
   qs("#loginForm").addEventListener("submit", async (e) => {
@@ -634,6 +678,7 @@ function guardAuth() {
 }
 
 async function init() {
+  initTheme();
   bindTopbar();
   await initSession();
   onAuthStateChange(async (_event, session) => {

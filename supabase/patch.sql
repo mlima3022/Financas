@@ -11,18 +11,36 @@ $$ language plpgsql;
 
 -- Workspace helpers
 create or replace function is_workspace_member(ws_id uuid)
-returns boolean as $$
-  select exists(
+returns boolean
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  perform set_config('row_security', 'off', true);
+  return exists(
     select 1 from workspace_members wm
     where wm.workspace_id = ws_id and wm.user_id = auth.uid()
   );
-$$ language sql stable;
+end;
+$$;
 
 create or replace function workspace_role(ws_id uuid)
-returns text as $$
-  select wm.role from workspace_members wm
+returns text
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  r text;
+begin
+  perform set_config('row_security', 'off', true);
+  select wm.role into r
+  from workspace_members wm
   where wm.workspace_id = ws_id and wm.user_id = auth.uid();
-$$ language sql stable;
+  return r;
+end;
+$$;
 
 -- Triggers for updated_at
  drop trigger if exists set_profiles_updated_at on profiles;
