@@ -338,8 +338,11 @@ async function renderTransactions() {
   let offset = 0;
 
   const [accounts, categories] = await Promise.all([listAccounts(), listCategories()]);
-  qs("#accountSelect").innerHTML = `<option value="">Conta</option>${accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join("")}`;
-  qs("#categorySelect").innerHTML = `<option value="">Categoria</option>${categories.map(c => `<option value="${c.id}">${c.name}</option>`).join("")}`;
+  const accountSelect = qs("#accountSelect");
+  const categorySelect = qs("#categorySelect");
+  if (!accountSelect || !categorySelect) return;
+  accountSelect.innerHTML = `<option value="">Conta</option>${accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join("")}`;
+  categorySelect.innerHTML = `<option value="">Categoria</option>${categories.map(c => `<option value="${c.id}">${c.name}</option>`).join("")}`;
   async function loadTx(append = false) {
     const table = qs("#txTable");
     if (!table) return;
