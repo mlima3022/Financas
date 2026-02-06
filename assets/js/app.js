@@ -341,6 +341,8 @@ async function renderTransactions() {
   qs("#accountSelect").innerHTML = `<option value="">Conta</option>${accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join("")}`;
   qs("#categorySelect").innerHTML = `<option value="">Categoria</option>${categories.map(c => `<option value="${c.id}">${c.name}</option>`).join("")}`;
   async function loadTx(append = false) {
+    const table = qs("#txTable");
+    if (!table) return;
     const from = qs("#filterFrom").value || undefined;
     const to = qs("#filterTo").value || undefined;
     const txs = await listTransactions({ from, to, offset, limit: 10 });
@@ -353,9 +355,9 @@ async function renderTransactions() {
       </tr>
     `).join("");
     if (append) {
-      qs("#txTable").insertAdjacentHTML("beforeend", rows);
+      table.insertAdjacentHTML("beforeend", rows);
     } else {
-      qs("#txTable").innerHTML = `<tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Descrição</th></tr>${rows}`;
+      table.innerHTML = `<tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Descrição</th></tr>${rows}`;
     }
   }
 
