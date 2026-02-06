@@ -186,6 +186,12 @@ create trigger set_debts_updated_at
 before update on debts
 for each row execute procedure set_updated_at();
 
+-- Debt installment tracking
+alter table debts add column if not exists installments_total int;
+alter table debts add column if not exists installments_paid int default 0;
+alter table debts add column if not exists monthly_amount numeric;
+alter table debts add column if not exists start_date date;
+
 -- Transactions
 create table if not exists transactions (
   id uuid primary key default uuid_generate_v4(),
@@ -200,6 +206,9 @@ create table if not exists transactions (
   amount numeric not null,
   currency text not null default 'BRL',
   date date not null,
+  card_cycle text,
+  is_paid boolean default false,
+  payment_transaction_id uuid references transactions,
   description text,
   created_by uuid references auth.users,
   created_at timestamptz default now(),
@@ -259,7 +268,11 @@ returns void as $$
 begin
   insert into debt_payments (debt_id, amount) values (debt_id, amount_value);
   update debts
-  set current_amount = greatest(coalesce(current_amount,0) - amount_value, 0)
+  set current_amount = greatest(coalesce(current_amount, principal_amount, 0) - amount_value, 0),
+      installments_paid = case
+        when installments_total is null then installments_paid
+        else least(coalesce(installments_paid,0) + 1, installments_total)
+      end
   where id = debt_id;
 end;
 $$ language plpgsql security definer;
@@ -270,7 +283,8 @@ returns json as $$
     'income', coalesce(sum(case when type='income' then amount else 0 end),0),
     'expense', coalesce(sum(case when type='expense' then amount else 0 end),0),
     'net', coalesce(sum(case when type='income' then amount else 0 end),0) - coalesce(sum(case when type='expense' then amount else 0 end),0),
-    'balance', coalesce(sum(case when type='income' then amount else -amount end),0)
+    'balance', (select coalesce(sum(initial_balance),0) from accounts where workspace_id = ws_id)
+               + coalesce(sum(case when type='income' then amount when type='expense' then -amount else 0 end),0)
   )
   from transactions
   where workspace_id = ws_id and to_char(date, 'YYYY-MM') = month_value;

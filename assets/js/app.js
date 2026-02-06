@@ -363,7 +363,9 @@ async function renderBudgets() {
       <div class="card-title">Categorias</div>
       <form id="catForm" class="grid-2">
         <input class="input" name="name" placeholder="Nome" required />
-        <input class="input" name="parent_id" placeholder="ID categoria pai" />
+        <select class="input" name="parent_id" id="catParentSelect">
+          <option value="">Sem categoria pai</option>
+        </select>
         <button class="btn" type="submit">Criar</button>
       </form>
       <div id="catList"></div>
@@ -384,10 +386,20 @@ async function renderBudgets() {
 
   qs("#catForm").addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (!state.activeWorkspaceId) {
+      toast("Selecione um workspace antes", "error");
+      return;
+    }
     const fd = new FormData(e.target);
-    await createCategory(Object.fromEntries(fd));
-    toast("Categoria criada");
-    renderBudgets();
+    const payload = Object.fromEntries(fd);
+    if (!payload.parent_id) payload.parent_id = null;
+    try {
+      await createCategory(payload);
+      toast("Categoria criada");
+      renderBudgets();
+    } catch (err) {
+      toast(err.message || "Erro ao criar categoria", "error");
+    }
   });
 
   qs("#budgetForm").addEventListener("submit", async (e) => {
@@ -402,6 +414,10 @@ async function renderBudgets() {
   const budgetCategory = view.querySelector("#budgetCategory");
   if (budgetCategory) {
     budgetCategory.innerHTML = `<option value="">Categoria</option>${categories.map(c => `<option value="${c.id}">${c.name}</option>`).join("")}`;
+  }
+  const catParentSelect = view.querySelector("#catParentSelect");
+  if (catParentSelect) {
+    catParentSelect.innerHTML = `<option value="">Sem categoria pai</option>${categories.map(c => `<option value="${c.id}">${c.name}</option>`).join("")}`;
   }
   const catList = view.querySelector("#catList");
   if (catList) {

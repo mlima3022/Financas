@@ -105,7 +105,11 @@ returns void as $$
 begin
   insert into debt_payments (debt_id, amount) values (debt_id, amount_value);
   update debts
-  set current_amount = greatest(coalesce(current_amount,0) - amount_value, 0)
+  set current_amount = greatest(coalesce(current_amount, principal_amount, 0) - amount_value, 0),
+      installments_paid = case
+        when installments_total is null then installments_paid
+        else least(coalesce(installments_paid,0) + 1, installments_total)
+      end
   where id = debt_id;
 end;
 $$ language plpgsql security definer;
@@ -116,7 +120,8 @@ returns json as $$
     'income', coalesce(sum(case when type='income' then amount else 0 end),0),
     'expense', coalesce(sum(case when type='expense' then amount else 0 end),0),
     'net', coalesce(sum(case when type='income' then amount else 0 end),0) - coalesce(sum(case when type='expense' then amount else 0 end),0),
-    'balance', coalesce(sum(case when type='income' then amount else -amount end),0)
+    'balance', (select coalesce(sum(initial_balance),0) from accounts where workspace_id = ws_id)
+               + coalesce(sum(case when type='income' then amount when type='expense' then -amount else 0 end),0)
   )
   from transactions
   where workspace_id = ws_id and to_char(date, 'YYYY-MM') = month_value;
@@ -275,6 +280,23 @@ alter table cards alter column created_by set default auth.uid();
 alter table goals alter column created_by set default auth.uid();
 alter table debts alter column created_by set default auth.uid();
 alter table transactions alter column created_by set default auth.uid();
+
+-- Debt installment tracking
+alter table debts add column if not exists installments_total int;
+alter table debts add column if not exists installments_paid int default 0;
+alter table debts add column if not exists monthly_amount numeric;
+alter table debts add column if not exists start_date date;
+
+-- Card purchase tracking
+alter table transactions add column if not exists card_cycle text;
+alter table transactions add column if not exists is_paid boolean default false;
+alter table transactions add column if not exists payment_transaction_id uuid references transactions;
+
+-- Debt installments
+alter table debts add column if not exists installments_total int;
+alter table debts add column if not exists installments_paid int default 0;
+alter table debts add column if not exists start_date date;
+alter table debts add column if not exists monthly_amount numeric;
 
 -- Policies (drop and recreate)
 drop policy if exists "Profiles are self" on profiles;
