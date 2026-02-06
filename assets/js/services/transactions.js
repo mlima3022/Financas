@@ -4,7 +4,7 @@ import { state } from "../state.js";
 export async function listTransactions({ from, to, accountId, categoryId, limit = 20, offset = 0 } = {}) {
   let query = supabase
     .from("transactions")
-    .select("*, accounts(name), categories(name)")
+    .select("*, accounts:accounts!transactions_account_id_fkey(name), categories(name)")
     .eq("workspace_id", state.activeWorkspaceId)
     .order("date", { ascending: false })
     .range(offset, offset + limit - 1);
