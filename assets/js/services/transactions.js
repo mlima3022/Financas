@@ -20,9 +20,25 @@ export async function listTransactions({ from, to, accountId, categoryId, limit 
 }
 
 export async function createTransaction(payload) {
+  const cleaned = { ...payload };
+  const uuidFields = [
+    "account_id",
+    "transfer_account_id",
+    "category_id",
+    "card_id",
+    "debt_id",
+    "goal_id",
+    "payment_transaction_id"
+  ];
+  uuidFields.forEach((key) => {
+    if (cleaned[key] === "" || cleaned[key] === undefined) {
+      delete cleaned[key];
+    }
+  });
+
   const { data, error } = await supabase
     .from("transactions")
-    .insert({ ...payload, workspace_id: state.activeWorkspaceId })
+    .insert({ ...cleaned, workspace_id: state.activeWorkspaceId })
     .select()
     .single();
   if (error) throw error;

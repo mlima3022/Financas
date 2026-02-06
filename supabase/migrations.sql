@@ -372,7 +372,7 @@ begin
 
   if new.account_id is not null then
     select coalesce(initial_balance,0) +
-           coalesce(sum(case when type='income' then amount else -amount end),0)
+           coalesce(sum(case when t.type='income' then t.amount else -t.amount end),0)
       into acct_balance
     from accounts a
     left join transactions t on t.account_id = a.id
