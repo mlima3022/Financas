@@ -422,7 +422,16 @@ async function renderBudgets() {
   const catList = view.querySelector("#catList");
   if (catList) {
     catList.innerHTML = categories.length
-    ? categories.map(c => `<div class="badge">${c.name}</div>`).join(" ")
+    ? `
+      <div class="category-list">
+        ${categories.map(c => `
+          <div class="category-item">
+            <span class="category-name">${c.name}</span>
+            ${c.parent_id ? `<span class="badge">Subcategoria</span>` : `<span class="badge success">Raiz</span>`}
+          </div>
+        `).join("")}
+      </div>
+    `
     : `<div class="state">Sem categorias</div>`;
   }
 
