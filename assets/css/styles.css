@@ -89,6 +89,7 @@ a { color: inherit; text-decoration: none; }
 .sidebar-footer { margin-top: auto; }
 
 .content { display: flex; flex-direction: column; min-width: 0; }
+.sidebar-backdrop { display: none; }
 
 .topbar {
   background: var(--panel);
@@ -380,6 +381,7 @@ a { color: inherit; text-decoration: none; }
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.45);
+    display: block;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease;
