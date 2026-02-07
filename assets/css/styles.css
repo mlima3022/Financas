@@ -346,6 +346,7 @@ a { color: inherit; text-decoration: none; }
   border-radius: 12px;
   color: var(--muted);
 }
+.hidden { display: none !important; }
 
 .modal {
   position: fixed;

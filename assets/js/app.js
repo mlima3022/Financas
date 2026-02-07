@@ -300,7 +300,7 @@ async function renderTransactions() {
     <div class="card">
       <div class="card-title">Nova transação</div>
       <form id="txForm" class="grid-3">
-        <select class="input" name="type">
+        <select class="input" name="type" id="txType">
           <option value="income">Receita</option>
           <option value="expense">Despesa</option>
           <option value="transfer">Transferência</option>
@@ -311,6 +311,9 @@ async function renderTransactions() {
         <input class="input" name="description" placeholder="Descrição" />
         <select class="input" name="account_id" id="accountSelect">
           <option value="">Conta</option>
+        </select>
+        <select class="input" name="transfer_account_id" id="transferAccountSelect" class="hidden">
+          <option value="">Conta destino</option>
         </select>
         <select class="input" name="category_id" id="categorySelect">
           <option value="">Categoria</option>
@@ -335,7 +338,46 @@ async function renderTransactions() {
     const fd = new FormData(e.target);
     const attachment = fd.get("attachment");
     fd.delete("attachment");
-    const tx = await createTransaction(Object.fromEntries(fd));
+    const payload = Object.fromEntries(fd);
+    const type = payload.type;
+    if (type === "transfer") {
+      if (!payload.account_id || !payload.transfer_account_id) {
+        return toast("Selecione conta origem e destino", "error");
+      }
+      if (payload.account_id === payload.transfer_account_id) {
+        return toast("Conta origem e destino devem ser diferentes", "error");
+      }
+      const source = accounts.find(a => a.id === payload.account_id);
+      const dest = accounts.find(a => a.id === payload.transfer_account_id);
+      const base = {
+        amount: payload.amount,
+        currency: payload.currency || "BRL",
+        date: payload.date,
+        description: payload.description
+      };
+      const outTx = await createTransaction({
+        ...base,
+        type: "expense",
+        account_id: payload.account_id,
+        transfer_account_id: payload.transfer_account_id,
+        description: base.description || `Transferência para ${dest?.name || "conta"}`,
+      });
+      await createTransaction({
+        ...base,
+        type: "income",
+        account_id: payload.transfer_account_id,
+        transfer_account_id: payload.account_id,
+        description: base.description || `Transferência de ${source?.name || "conta"}`,
+      });
+      if (attachment && attachment.size) {
+        await uploadAttachment(attachment, outTx.id);
+      }
+      toast("Transferência registrada");
+      renderTransactions();
+      return;
+    }
+
+    const tx = await createTransaction(payload);
     if (attachment && attachment.size) {
       await uploadAttachment(attachment, tx.id);
     }
@@ -347,10 +389,26 @@ async function renderTransactions() {
 
   const [accounts, categories] = await Promise.all([listAccounts(), listCategories()]);
   const accountSelect = qs("#accountSelect");
+  const transferAccountSelect = qs("#transferAccountSelect");
   const categorySelect = qs("#categorySelect");
   if (!accountSelect || !categorySelect) return;
   accountSelect.innerHTML = `<option value="">Conta</option>${accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join("")}`;
+  if (transferAccountSelect) {
+    transferAccountSelect.innerHTML = `<option value="">Conta destino</option>${accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join("")}`;
+  }
   categorySelect.innerHTML = `<option value="">Categoria</option>${categories.map(c => `<option value="${c.id}">${c.name}</option>`).join("")}`;
+
+  const txType = qs("#txType");
+  function toggleTransferUI() {
+    const isTransfer = txType?.value === "transfer";
+    if (transferAccountSelect) transferAccountSelect.classList.toggle("hidden", !isTransfer);
+    if (categorySelect) categorySelect.classList.toggle("hidden", isTransfer);
+    accountSelect.querySelector("option[value='']")?.setAttribute("label", isTransfer ? "Conta origem" : "Conta");
+  }
+  if (txType) {
+    txType.addEventListener("change", toggleTransferUI);
+    toggleTransferUI();
+  }
   async function loadTx(append = false) {
     const table = qs("#txTable");
     if (!table) return;
